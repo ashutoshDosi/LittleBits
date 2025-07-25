@@ -1,4 +1,6 @@
-#!/Users/jiakesaria/lb_cursor/LittleBits/venv/bin/python3.11
+#!/bin/sh
+'''exec' "/Users/ayushkiran/Documents/CS Projects/LittleBits/venv/bin/python3" "$0" "$@"
+' '''
 # -*- coding: utf-8 -*-
 import re
 import sys

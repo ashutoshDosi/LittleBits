@@ -10,6 +10,7 @@ from .executor import call_gemini
 from .memory import log_interaction
 from fastapi.middleware.cors import CORSMiddleware
 from .routers import router as api_router
+import os
 
 app = FastAPI()
 
@@ -58,3 +59,8 @@ How to run:
 3. Start the server:
    uvicorn src.main:app --reload
 """
+
+from dotenv import load_dotenv
+load_dotenv()
+
+SECRET_KEY = os.environ["SECRET_KEY"]
