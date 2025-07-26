@@ -79,6 +79,16 @@ class HealthTrackingTool:
     """Google Fit integration for sleep tracking only."""
 
     @staticmethod
+    def get_sleep_data(user_id: int):
+        # TODO: Integrate with Google Fit or use mock data for now
+        return {
+            "hours_last_night": 7.5,
+            "quality_score": 8,
+            "recommended_hours": 8,
+            "status": "good"
+        }
+
+    @staticmethod
     def get_health_data(user_id: int, access_token: str) -> Dict[str, Any]:
         """
         Get user's sleep duration from Google Fit over past 24 hours.

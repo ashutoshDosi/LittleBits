@@ -182,6 +182,7 @@ def get_shared_info(
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
+    # Show info shared with the current user as a partner
     partner_links = db.query(models.Partner).filter(models.Partner.partner_user_id == current_user.id, models.Partner.status == "accepted").all()
     shared = []
     for link in partner_links:
@@ -198,5 +199,5 @@ def get_shared_info(
                     } for c in cycles
                 ]
             })
-        # Add other consent types here if needed
+        # Add more types as needed
     return shared

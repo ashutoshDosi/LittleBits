@@ -57,7 +57,6 @@ class Partner(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     partner_user_id = Column(Integer, ForeignKey("users.id"))
     consent_type = Column(String)  # e.g., 'cycle', 'advice', etc.
-    status = Column(String, default="pending")  # 'pending', 'accepted', 'revoked'
-
+    status = Column(String, default="pending")  # pending, accepted, revoked
     user = relationship("User", back_populates="partners", foreign_keys=[user_id])
     partner = relationship("User", back_populates="partner_of", foreign_keys=[partner_user_id])
