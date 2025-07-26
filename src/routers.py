@@ -5,23 +5,31 @@ Defines FastAPI routers for user authentication and core features.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from fastapi.security import OAuth2PasswordRequestForm
 from . import schemas, models, auth
 from .database import get_db
 from typing import List
 from datetime import datetime
-from pydantic import BaseModel
 
 router = APIRouter()
 
-class GoogleToken(BaseModel):
-    token: str
+@router.post("/register", response_model=schemas.UserOut)
+def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    db_user = auth.get_user_by_email(db, user.email)
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    hashed_password = auth.get_password_hash(user.password)
+    new_user = models.User(email=user.email, hashed_password=hashed_password)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
 
-@router.post("/auth/google")
-def google_login(payload: GoogleToken, db: Session = Depends(get_db)):
-    userinfo = auth.verify_google_token(payload.token)
-    if not userinfo:
-        raise HTTPException(status_code=401, detail="Invalid Google token")
-    user = auth.get_or_create_user(db, userinfo["email"], userinfo.get("name"))
+@router.post("/token", response_model=schemas.Token)
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = auth.authenticate_user(db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
     access_token = auth.create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 

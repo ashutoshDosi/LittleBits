@@ -15,7 +15,7 @@ from .executor import call_gemini
 from .database import get_db
 from .models import Interaction
 from sqlalchemy.orm import Session
-from .external_tools import CalendarTool, HealthTrackingTool, MedicalInfoTool
+from .external_tools import CalendarTool, HealthTrackingTool, MedicalInfoTool, WeatherTool
 from datetime import datetime
 from . import models
 
@@ -108,6 +108,11 @@ def execute_action(action: str, user_id: int, db: Session) -> str:
             else:
                 return "No specific symptom detected for medical research."
         
+        # Weather correlation
+        elif "check_weather" in action.lower():
+            weather = WeatherTool.get_weather_data()
+            return f"Weather: {weather['description']}, {weather['temperature']}°F. {weather['impact_on_symptoms']}"
+        
         # Cycle phase check
         elif "check_cycle_phase" in action.lower():
             # Get user's last cycle data
@@ -140,12 +145,14 @@ def execute_action(action: str, user_id: int, db: Session) -> str:
         elif "check_partner_status" in action.lower():
             return "Partner has access to cycle info. Can send supportive message."
         
-        # Comprehensive analysis
+        # Comprehensive health analysis
         elif "comprehensive_analysis" in action.lower():
+            # Get all external data
             schedule = CalendarTool.get_user_schedule(user_id)
             health_data = HealthTrackingTool.get_health_data(user_id)
+            weather = WeatherTool.get_weather_data()
             
-            return f"Comprehensive Analysis: Stress level {schedule['stress_level']}, Hydration {health_data['hydration']['percentage']}%. Combined factors may affect your symptoms."
+            return f"Comprehensive Analysis: Stress level {schedule['stress_level']}, Hydration {health_data['hydration']['percentage']}%, Weather {weather['condition']}. Combined factors may affect your symptoms."
         
         # Default action
         else:

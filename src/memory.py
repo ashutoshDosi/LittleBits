@@ -1,48 +1,35 @@
 """
 memory.py
-Logs user interactions to the database.
+Logs user interactions to a local JSON file.
 """
 
-import logging
+import json
 from datetime import datetime
-from sqlalchemy.orm import Session
-from .models import Interaction
+from pathlib import Path
 
-logger = logging.getLogger(__name__)
+LOG_FILE = Path(__file__).parent / "interaction_log.json"
 
-def log_interaction(
-    user_input: str,
-    response: str,
-    user_id: int,
-    db: Session,
-    timestamp: datetime = None
-) -> Interaction:
+def log_interaction(user_input: str, response: str):
     """
-    Logs the user input and AI response to the database.
-    
+    Appends the user input and Gemini response to a local JSON log file.
     Args:
         user_input (str): The user's input message.
         response (str): The AI's response.
-        user_id (int): The user's ID.
-        db (Session): Database session.
-        timestamp (datetime, optional): Optional timestamp (defaults to UTC now).
-        
-    Returns:
-        Interaction: The newly logged interaction object.
     """
-    try:
-        interaction = Interaction(
-            user_id=user_id,
-            message=user_input.strip(),
-            response=response.strip(),
-            timestamp=timestamp or datetime.utcnow()
-        )
-        db.add(interaction)
-        db.commit()
-        db.refresh(interaction)
-        logger.info(f"Logged interaction ID {interaction.id} for user {user_id}")
-        return interaction
-    except Exception as e:
-        logger.exception("Error logging interaction")
-        db.rollback()
-        raise
+    entry = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "user_input": user_input,
+        "response": response
+    }
+    # Load existing log or start new
+    if LOG_FILE.exists():
+        with open(LOG_FILE, 'r', encoding='utf-8') as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                data = []
+    else:
+        data = []
+    data.append(entry)
+    with open(LOG_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2) 
