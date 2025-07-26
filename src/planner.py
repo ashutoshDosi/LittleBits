@@ -2,7 +2,7 @@
 planner.py
 
 Enhanced agentic AI planner for CycleWise that implements:
-- Memory retrieval for context
+- Memory retrieval using vector similarity (via Google Vertex AI embeddings + FAISS)
 - ReAct pattern (Thought → Action → Observation → Reflection → Final Answer)
 - Multi-step reasoning with Gemini API
 - Structured task output with categories and reasons
@@ -18,6 +18,9 @@ from sqlalchemy.orm import Session
 from .external_tools import CalendarTool, HealthTrackingTool, MedicalInfoTool, WeatherTool
 from datetime import datetime
 from . import models
+from google.cloud import aiplatform_v1
+import faiss
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -30,40 +33,52 @@ SUPPORTED_TASK_TYPES = [
     "send_partner_update",
 ]
 
+# Vector embedding client setup (Google Vertex AI)
+def embed_text(texts: List[str]) -> List[List[float]]:
+    client = aiplatform_v1.PredictionServiceClient()
+    endpoint = "projects/your-project/locations/us-central1/publishers/google/models/textembedding-gecko"
+
+    instances = [{"content": t} for t in texts]
+    response = client.predict(endpoint=endpoint, instances=instances)
+    return [list(pred.embedding) for pred in response.predictions]
+
+# Vector store (in-memory FAISS index)
+embedding_dim = 768  # Depending on model used
+memory_index = faiss.IndexFlatL2(embedding_dim)
+memory_texts: List[str] = []
+
+
+def update_memory_index(user_id: int, db: Session):
+    global memory_index, memory_texts
+    interactions = (
+        db.query(Interaction)
+        .filter(Interaction.user_id == user_id)
+        .order_by(Interaction.timestamp.desc())
+        .limit(100)
+        .all()
+    )
+    memory_texts = [f"User: {i.message}\nAI: {i.response}" for i in interactions]
+    if memory_texts:
+        vectors = embed_text(memory_texts)
+        memory_index = faiss.IndexFlatL2(len(vectors[0]))
+        memory_index.add(np.array(vectors).astype('float32'))
+
+
 def get_relevant_memory(user_id: int, user_input: str, db: Session) -> str:
-    """
-    Retrieve relevant past interactions for context.
-    
-    Args:
-        user_id: The user's ID
-        user_input: Current user input
-        db: Database session
-    
-    Returns:
-        str: Relevant memory context
-    """
     try:
-        # Get last 5 interactions for context
-        recent_interactions = (
-            db.query(Interaction)
-            .filter(Interaction.user_id == user_id)
-            .order_by(Interaction.timestamp.desc())
-            .limit(5)
-            .all()
-        )
-        
-        if not recent_interactions:
-            return "No previous interactions found."
-        
-        memory_context = "Recent interactions:\n"
-        for interaction in reversed(recent_interactions):  # Show in chronological order
-            memory_context += f"- User: {interaction.message}\n"
-            memory_context += f"  AI: {interaction.response}\n\n"
-        
+        update_memory_index(user_id, db)
+        if not memory_texts:
+            return "No memory available."
+
+        query_vector = np.array(embed_text([user_input])[0]).astype('float32').reshape(1, -1)
+        _, I = memory_index.search(query_vector, k=5)
+        retrieved = [memory_texts[i] for i in I[0] if i < len(memory_texts)]
+
+        memory_context = "Relevant past interactions:\n\n" + "\n\n".join(retrieved)
         return memory_context
     except Exception as e:
-        logger.error(f"Error retrieving memory: {e}")
-        return "Unable to retrieve previous interactions."
+        logger.error(f"Vector memory retrieval failed: {e}")
+        return "Unable to retrieve relevant memory."
 
 def execute_action(action: str, user_id: int, db: Session) -> str:
     """
