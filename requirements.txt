@@ -1,48 +1,41 @@
 # Core FastAPI Framework
-starlette==0.37.2
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-python-dotenv==1.0.0
-google-generativeai==0.3.2
-sqlalchemy==2.0.30
-pydantic==2.5.0
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-dotenv>=1.0.0
+google-generativeai>=0.3.0
+sqlalchemy>=2.0.0
+pydantic>=2.0.0
 
 # Authentication and Security
-passlib[bcrypt]==1.7.4
-python-jose[cryptography]==3.3.0
-bcrypt==4.3.0
-python-multipart==0.0.9
+passlib[bcrypt]>=1.7.0
+python-jose[cryptography]>=3.3.0
+bcrypt>=4.0.0
+python-multipart>=0.0.9
 
 # Google APIs and OAuth
-google-generativeai==0.3.2
-google-auth==2.40.3
-google-api-python-client==2.177.0
-google-auth-httplib2==0.2.0
-google-auth-oauthlib==1.2.2
-google-ai-generativelanguage==0.4.0
+google-auth>=2.40.0
+google-api-python-client>=2.170.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.2.0
+google-ai-generativelanguage>=0.4.0
 
 # Vector Database and AI
-faiss-cpu==1.11.0.post1
-numpy==2.0.2
-google-cloud-aiplatform==1.45.0
+faiss-cpu>=1.11.0
+numpy>=2.0.0
+google-cloud-aiplatform>=1.45.0
 
 # Data Validation and Serialization
-pydantic==2.11.7
-pydantic_core==2.33.2
-email-validator==2.1.1
+email-validator>=2.0.0
 
 # HTTP and Networking
-requests==2.31.0
-httplib2==0.22.0
-urllib3==2.5.0
-
-# Environment and Configuration
-python-dotenv==1.0.1
+requests>=2.31.0
+httplib2>=0.22.0
+urllib3>=2.0.0
 
 # Testing
-pytest==8.4.1
+pytest>=8.0.0
 
 # Utilities
-typing-extensions==4.14.1
-anyio==4.9.0
-sniffio==1.3.1
+typing-extensions>=4.0.0
+anyio>=4.0.0
+sniffio>=1.0.0

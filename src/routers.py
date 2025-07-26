@@ -1,74 +1,47 @@
 """
 routers.py
-Defines FastAPI routers for user authentication and core features.
+API routes for CycleWise backend.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from fastapi.security import OAuth2PasswordRequestForm
-from . import schemas, models, auth
-from .database import get_db
-from typing import List
+from database import get_db
+import models
+import auth
+import schemas
 from datetime import datetime
+from typing import List
 
 router = APIRouter()
 
-# --- Auth & User ---
+# --- User Management ---
 @router.post("/users", response_model=schemas.UserOut)
-def create_user(user_data: schemas.UserCreateGoogle, db: Session = Depends(get_db)):
-    """
-    Create a new user from Google OAuth data.
-    This endpoint is for frontend to create users after Google authentication.
-    """
-    # Check if user already exists
-    db_user = auth.get_user_by_email(db, user_data.email)
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Create new user (no password needed for Google OAuth)
-    new_user = models.User(
-        email=user_data.email,
-        hashed_password=""  # Empty for Google OAuth users
+    db_user = models.User(
+        email=user.email,
+        age=user.age,
+        cycle_start_date=user.cycle_start_date,
+        period_duration=user.period_duration
     )
-    db.add(new_user)
+    db.add(db_user)
     db.commit()
-    db.refresh(new_user)
-    return new_user
-
-@router.post("/register", response_model=schemas.UserOut)
-def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    db_user = auth.get_user_by_email(db, user.email)
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    hashed_password = auth.get_password_hash(user.password)
-    new_user = models.User(email=user.email, hashed_password=hashed_password)
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return new_user
-
-@router.post("/token", response_model=schemas.Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = auth.authenticate_user(db, form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
-    access_token = auth.create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+    db.refresh(db_user)
+    return db_user
 
 @router.get("/me", response_model=schemas.UserOut)
-def get_me(current_user: models.User = Depends(auth.get_current_user)):
+def get_current_user(current_user: models.User = Depends(auth.get_current_user)):
     return current_user
 
 @router.put("/me", response_model=schemas.UserOut)
-def update_me(
+def update_user(
     user_update: schemas.UserUpdate,
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Update current user's profile information.
-    """
-    # Update only provided fields
     if user_update.age is not None:
         current_user.age = user_update.age
     if user_update.cycle_start_date is not None:
@@ -79,31 +52,6 @@ def update_me(
     db.commit()
     db.refresh(current_user)
     return current_user
-
-# --- Personalized Memory (Interactions) ---
-@router.post("/interactions", response_model=schemas.InteractionOut)
-def log_interaction(
-    interaction: schemas.InteractionCreate,
-    current_user: models.User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db),
-):
-    new_interaction = models.Interaction(
-        user_id=current_user.id,
-        message=interaction.message,
-        response=interaction.response,
-        timestamp=datetime.utcnow(),
-    )
-    db.add(new_interaction)
-    db.commit()
-    db.refresh(new_interaction)
-    return new_interaction
-
-@router.get("/interactions", response_model=List[schemas.InteractionOut])
-def get_interactions(
-    current_user: models.User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db),
-):
-    return db.query(models.Interaction).filter(models.Interaction.user_id == current_user.id).order_by(models.Interaction.timestamp.desc()).all()
 
 # --- Cycle/Phase Management ---
 @router.post("/cycles", response_model=schemas.CycleOut)
@@ -126,9 +74,10 @@ def log_cycle(
 @router.get("/cycles", response_model=List[schemas.CycleOut])
 def get_cycles(
     current_user: models.User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db)
 ):
-    return db.query(models.Cycle).filter(models.Cycle.user_id == current_user.id).order_by(models.Cycle.start_date.desc()).all()
+    cycles = db.query(models.Cycle).filter(models.Cycle.user_id == current_user.id).all()
+    return cycles
 
 @router.get("/phase")
 def get_current_phase(
@@ -156,14 +105,13 @@ def get_current_phase(
 def create_reminder(
     reminder: schemas.ReminderCreate,
     current_user: models.User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db)
 ):
     new_reminder = models.Reminder(
         user_id=current_user.id,
         type=reminder.type,
         time=reminder.time,
-        method=reminder.method,
-        active=True,
+        method=reminder.method
     )
     db.add(new_reminder)
     db.commit()
@@ -173,51 +121,44 @@ def create_reminder(
 @router.get("/reminders", response_model=List[schemas.ReminderOut])
 def get_reminders(
     current_user: models.User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db)
 ):
-    return db.query(models.Reminder).filter(models.Reminder.user_id == current_user.id).all()
+    reminders = db.query(models.Reminder).filter(models.Reminder.user_id == current_user.id).all()
+    return reminders
 
-# --- Partner/Supporter Features ---
-@router.post("/invite-partner", response_model=schemas.PartnerOut)
+# --- Partner Features ---
+@router.post("/invite-partner")
 def invite_partner(
-    invite: schemas.PartnerInvite,
+    partner_email: str,
+    consent_type: str = "cycle",
     current_user: models.User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db)
 ):
-    partner_user = auth.get_user_by_email(db, invite.partner_email)
+    # Find partner user
+    partner_user = db.query(models.User).filter(models.User.email == partner_email).first()
     if not partner_user:
-        raise HTTPException(status_code=404, detail="Partner email not found.")
-    new_partner = models.Partner(
+        raise HTTPException(status_code=404, detail="Partner user not found")
+    
+    # Check if invitation already exists
+    existing_invite = db.query(models.Partner).filter(
+        models.Partner.user_id == current_user.id,
+        models.Partner.partner_user_id == partner_user.id
+    ).first()
+    
+    if existing_invite:
+        raise HTTPException(status_code=400, detail="Invitation already sent")
+    
+    # Create partner relationship
+    partner_relation = models.Partner(
         user_id=current_user.id,
         partner_user_id=partner_user.id,
-        consent_type=invite.consent_type,
-        status="pending",
+        consent_type=consent_type,
+        status="pending"
     )
-    db.add(new_partner)
+    db.add(partner_relation)
     db.commit()
-    db.refresh(new_partner)
-    return new_partner
-
-@router.get("/partners", response_model=List[schemas.PartnerOut])
-def get_partners(
-    current_user: models.User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db),
-):
-    return db.query(models.Partner).filter(models.Partner.user_id == current_user.id).all()
-
-@router.post("/partners/{partner_id}/consent")
-def update_partner_consent(
-    partner_id: int,
-    consent_type: str,
-    current_user: models.User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db),
-):
-    partner = db.query(models.Partner).filter(models.Partner.id == partner_id, models.Partner.user_id == current_user.id).first()
-    if not partner:
-        raise HTTPException(status_code=404, detail="Partner relationship not found.")
-    partner.consent_type = consent_type
-    db.commit()
-    return {"message": "Consent updated."}
+    
+    return {"message": f"Invitation sent to {partner_email}"}
 
 @router.get("/shared-info")
 def get_shared_info(
@@ -243,3 +184,176 @@ def get_shared_info(
             })
         # Add more types as needed
     return shared
+
+# --- Health & External Data ---
+@router.get("/health")
+def get_health_data(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get comprehensive health data including hydration, exercise, and sleep."""
+    from external_tools import HealthTrackingTool
+    
+    try:
+        health_data = HealthTrackingTool.get_health_data(current_user.id)
+        return {
+            "success": True,
+            "data": health_data,
+            "user_id": current_user.id
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "data": {
+                "hydration": {"percentage": 75, "water_intake_ml": 1500, "recommended_ml": 2000, "status": "needs_improvement"},
+                "exercise": {"steps_today": 6500, "calories_burned": 320, "active_minutes": 45, "status": "moderate"},
+                "sleep": {"hours_last_night": 7.5, "quality_score": 8, "recommended_hours": 8, "status": "good"}
+            }
+        }
+
+@router.get("/calendar")
+def get_calendar_data(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get calendar data and stress analysis."""
+    from external_tools import CalendarTool
+    
+    try:
+        calendar_data = CalendarTool.get_user_schedule(current_user.id)
+        return {
+            "success": True,
+            "data": calendar_data,
+            "user_id": current_user.id
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "data": {
+                "description": "3 meetings today, 2 hours total",
+                "stress_level": "moderate",
+                "meeting_count": 3,
+                "total_hours": 2.0,
+                "next_meeting": "2:00 PM",
+                "free_time": "1:00 PM - 2:00 PM"
+            }
+        }
+
+@router.get("/weather")
+def get_weather_data(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get weather data and its impact on symptoms."""
+    from external_tools import WeatherTool
+    
+    try:
+        weather_data = WeatherTool.get_weather_data()
+        return {
+            "success": True,
+            "data": weather_data,
+            "user_id": current_user.id
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "data": {
+                "temperature": 72,
+                "description": "Partly cloudy",
+                "humidity": 65,
+                "pressure": 1013,
+                "impact_on_symptoms": "Moderate humidity may affect bloating and discomfort. Consider staying hydrated and avoiding salty foods."
+            }
+        }
+
+@router.get("/health/insights")
+def get_health_insights(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get AI-powered health insights based on current data."""
+    from external_tools import HealthTrackingTool, CalendarTool, WeatherTool
+    
+    try:
+        # Gather all data
+        health_data = HealthTrackingTool.get_health_data(current_user.id)
+        calendar_data = CalendarTool.get_user_schedule(current_user.id)
+        weather_data = WeatherTool.get_weather_data()
+        
+        # Get current phase
+        last_cycle = db.query(models.Cycle).filter(models.Cycle.user_id == current_user.id).order_by(models.Cycle.start_date.desc()).first()
+        days_since = (datetime.utcnow() - last_cycle.start_date).days if last_cycle else 0
+        
+        if days_since <= 4:
+            phase = "menstrual"
+        elif days_since <= 13:
+            phase = "follicular"
+        elif days_since <= 16:
+            phase = "ovulatory"
+        elif days_since <= 28:
+            phase = "luteal"
+        else:
+            phase = "unknown"
+        
+        # Generate insights
+        insights = {
+            "phase": phase,
+            "recommendations": [],
+            "focus_areas": [],
+            "correlations": []
+        }
+        
+        # Hydration insights
+        if health_data["hydration"]["percentage"] < 80:
+            insights["recommendations"].append("Increase water intake by 500ml today")
+            insights["focus_areas"].append("hydration")
+        
+        # Exercise insights
+        if health_data["exercise"]["steps_today"] < 8000:
+            insights["recommendations"].append("Take a 15-minute walk during your free time")
+            insights["focus_areas"].append("activity")
+        
+        # Sleep insights
+        if health_data["sleep"]["hours_last_night"] < 7:
+            insights["recommendations"].append("Prioritize getting 8 hours of sleep tonight")
+            insights["focus_areas"].append("sleep")
+        
+        # Calendar stress insights
+        if calendar_data["stress_level"] == "high":
+            insights["recommendations"].append("Practice stress management between meetings")
+            insights["focus_areas"].append("stress_management")
+        
+        # Weather correlations
+        if weather_data["humidity"] > 60:
+            insights["correlations"].append("High humidity may affect bloating - stay hydrated")
+        
+        # Phase-specific insights
+        if phase == "luteal":
+            insights["recommendations"].append("This is your luteal phase - prioritize rest and self-care")
+        elif phase == "menstrual":
+            insights["recommendations"].append("During your period - be gentle with yourself and rest as needed")
+        
+        return {
+            "success": True,
+            "insights": insights,
+            "data": {
+                "health": health_data,
+                "calendar": calendar_data,
+                "weather": weather_data
+            }
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "insights": {
+                "phase": "unknown",
+                "recommendations": ["Stay hydrated", "Get adequate sleep", "Practice self-care"],
+                "focus_areas": ["general_wellness"],
+                "correlations": []
+            }
+        }

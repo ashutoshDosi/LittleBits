@@ -11,13 +11,13 @@ Enhanced agentic AI planner for CycleWise that implements:
 import json
 import logging
 from typing import List, Dict, Any, Optional
-from .executor import call_gemini
-from .database import get_db
-from .models import Interaction
+from executor import call_gemini
+from database import get_db
+from models import Interaction
 from sqlalchemy.orm import Session
-from .external_tools import CalendarTool, HealthTrackingTool, MedicalInfoTool, WeatherTool
+from external_tools import CalendarTool, HealthTrackingTool, MedicalInfoTool, WeatherTool
 from datetime import datetime
-from . import models
+import models
 from google.cloud import aiplatform_v1
 import faiss
 import numpy as np
@@ -136,17 +136,27 @@ def execute_action(action: str, user_id: int, db: Session) -> str:
                 days_since = (datetime.utcnow() - last_cycle.start_date).days
                 if days_since <= 4:
                     phase = "menstrual"
+                    phase_description = "You're in your menstrual phase. This is normal to experience cramps, fatigue, and mood changes."
                 elif days_since <= 13:
                     phase = "follicular"
+                    phase_description = "You're in the follicular phase. Energy levels typically increase, and you may feel more optimistic."
                 elif days_since <= 16:
                     phase = "ovulatory"
+                    phase_description = "You're in the ovulatory phase. This is your peak fertility window and you may feel confident and social."
                 elif days_since <= 28:
                     phase = "luteal"
+                    phase_description = "You're in the luteal phase. PMS symptoms like bloating and mood swings are common."
                 else:
                     phase = "unknown"
-                return f"Cycle Phase: {phase} (day {days_since}). This phase typically affects energy levels and symptoms."
+                    phase_description = "Cycle phase unclear. Consider logging your period start date."
+                
+                # Get recent symptoms and moods for context
+                recent_symptoms = last_cycle.symptoms if last_cycle.symptoms else "None logged"
+                recent_moods = last_cycle.moods if last_cycle.moods else "None logged"
+                
+                return f"Cycle Phase: {phase} (day {days_since}). {phase_description} Recent symptoms: {recent_symptoms}. Recent moods: {recent_moods}."
             else:
-                return "No cycle data found. Please log your period start date for phase tracking."
+                return "No cycle data found. Please log your period start date for phase tracking and personalized recommendations."
         
         # Log symptom
         elif "log_symptom" in action.lower():
@@ -160,22 +170,54 @@ def execute_action(action: str, user_id: int, db: Session) -> str:
         elif "check_partner_status" in action.lower():
             return "Partner has access to cycle info. Can send supportive message."
         
-        # Comprehensive health analysis
+        # Comprehensive analysis
         elif "comprehensive_analysis" in action.lower():
-            # Get all external data
             schedule = CalendarTool.get_user_schedule(user_id)
             health_data = HealthTrackingTool.get_health_data(user_id)
             weather = WeatherTool.get_weather_data()
             
-            return f"Comprehensive Analysis: Stress level {schedule['stress_level']}, Hydration {health_data['hydration']['percentage']}%, Weather {weather['condition']}. Combined factors may affect your symptoms."
+            return f"Comprehensive Analysis: Calendar stress level: {schedule['stress_level']}. Health: Hydration {health_data['hydration']['percentage']}%, Sleep {health_data['sleep']['hours_last_night']} hours. Weather: {weather['description']}. All factors considered for personalized recommendations."
         
-        # Default action
         else:
-            return f"Action '{action}' executed successfully."
-            
+            return "Action not recognized. Available actions: check_calendar, check_health, get_medical_info, check_weather, check_cycle_phase, log_symptom, set_reminder, check_partner_status, comprehensive_analysis."
+    
     except Exception as e:
         logger.error(f"Error executing action: {e}")
-        return f"Action failed: {str(e)}"
+        return f"Error executing action: {str(e)}"
+
+
+def generate_contextual_response(user_input: str, calendar_data: dict, health_data: dict, sleep_data: dict, medical_info: dict) -> str:
+    """
+    Generate a contextual response based on user input and available data.
+    """
+    try:
+        # Create a comprehensive prompt for Gemini
+        prompt = f"""
+You are an empathetic AI health assistant for a menstrual health app. The user said: "{user_input}"
+
+Available context:
+- Calendar: {calendar_data.get('description', 'No calendar data')}
+- Health: Hydration {health_data.get('hydration', {}).get('percentage', 'unknown')}%, Sleep {sleep_data.get('hours_last_night', 'unknown')} hours
+- Medical Info: {medical_info.get('description', 'No medical info available')}
+
+Provide a helpful, empathetic response that:
+1. Addresses the user's concern
+2. Uses the available context to personalize the response
+3. Offers practical advice or suggestions
+4. Maintains a supportive, non-judgmental tone
+5. Encourages further engagement if appropriate
+
+Response:
+"""
+        
+        # Call Gemini with the contextual prompt
+        response = call_gemini(prompt)
+        return response
+    
+    except Exception as e:
+        logger.error(f"Error generating contextual response: {e}")
+        return "I'm here to help with your health and cycle tracking. What would you like to know?"
+
 
 def plan_tasks(user_input: str, user_id: Optional[int] = None, db: Optional[Session] = None) -> List[Dict[str, Any]]:
     """

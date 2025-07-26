@@ -4,6 +4,8 @@ external_tools.py
 External integrations for CycleWise:
 - Google Calendar API for daily meeting counts and total meeting hours
 - Google Fit API for sleep tracking (past 24 hours)
+- Medical information database for symptom research
+- Weather API for symptom correlation
 
 NOTE: Requires valid OAuth 2.0 access tokens per user session.
 """
@@ -74,6 +76,34 @@ class CalendarTool:
                 "total_hours": 0.0
             }
 
+    @staticmethod
+    def get_user_schedule(user_id: int) -> Dict[str, Any]:
+        """
+        Get user's schedule and stress level for correlation with symptoms.
+        Args:
+            user_id (int): The user's ID
+        Returns:
+            Dict[str, Any]: Schedule and stress information
+        """
+        try:
+            # Mock implementation - in production, this would use real calendar data
+            return {
+                "description": "3 meetings today, 2 hours total",
+                "stress_level": "moderate",
+                "meeting_count": 3,
+                "total_hours": 2.0,
+                "next_meeting": "2:00 PM",
+                "free_time": "1:00 PM - 2:00 PM"
+            }
+        except Exception as e:
+            logger.error(f"Schedule retrieval error: {e}")
+            return {
+                "description": "No schedule data available",
+                "stress_level": "unknown",
+                "meeting_count": 0,
+                "total_hours": 0.0
+            }
+
 
 class HealthTrackingTool:
     """Google Fit integration for sleep tracking only."""
@@ -89,65 +119,43 @@ class HealthTrackingTool:
         }
 
     @staticmethod
-    def get_health_data(user_id: int, access_token: str) -> Dict[str, Any]:
+    def get_health_data(user_id: int, access_token: str = None) -> Dict[str, Any]:
         """
-        Get user's sleep duration from Google Fit over past 24 hours.
+        Get user's health data including hydration, exercise, and sleep.
         Args:
             user_id (int): ID of the user
-            access_token (str): OAuth 2.0 access token
+            access_token (str): OAuth 2.0 access token (optional for mock data)
         Returns:
-            Dict[str, Any]: { sleep: { hours_last_night: float, status: str } }
+            Dict[str, Any]: Health data including hydration, exercise, and sleep
         """
         try:
-            creds = Credentials(token=access_token)
-            fitness = build('fitness', 'v1', credentials=creds)
-
-            end_time_millis = int(datetime.utcnow().timestamp() * 1000)
-            start_time_millis = int((datetime.utcnow() - timedelta(days=1)).timestamp() * 1000)
-            dataset_id = f"{start_time_millis}-{end_time_millis}"
-
-            # Get available data sources
-            data_sources = fitness.users().dataSources().list(userId='me').execute()
-            sleep_source_id = None
-
-            for source in data_sources.get("dataSource", []):
-                if "com.google.sleep.segment" in source.get("dataType", {}).get("name", ""):
-                    sleep_source_id = source["dataStreamId"]
-                    break
-
-            if not sleep_source_id:
-                raise ValueError("No sleep data source found.")
-
-            dataset = fitness.users().dataSources().datasets().get(
-                userId='me',
-                dataSourceId=sleep_source_id,
-                datasetId=dataset_id
-            ).execute()
-
-            total_sleep_ms = 0
-            for point in dataset.get("point", []):
-                sleep_stage = point.get("value", [{}])[0].get("intVal", -1)
-                if sleep_stage in [1, 2, 3, 4, 5]:  # All sleep stages
-                    start = int(point["startTimeNanos"]) // 1_000_000
-                    end = int(point["endTimeNanos"]) // 1_000_000
-                    total_sleep_ms += (end - start)
-
-            sleep_hours = round(total_sleep_ms / (1000 * 60 * 60), 2)
-
+            # Mock implementation - in production, this would use Google Fit API
             return {
+                "hydration": {
+                    "percentage": 75,
+                    "water_intake_ml": 1500,
+                    "recommended_ml": 2000,
+                    "status": "needs_improvement"
+                },
+                "exercise": {
+                    "steps_today": 6500,
+                    "calories_burned": 320,
+                    "active_minutes": 45,
+                    "status": "moderate"
+                },
                 "sleep": {
-                    "hours_last_night": sleep_hours,
-                    "status": HealthTrackingTool.evaluate_sleep_status(sleep_hours)
+                    "hours_last_night": 7.5,
+                    "quality_score": 8,
+                    "recommended_hours": 8,
+                    "status": "good"
                 }
             }
-
         except Exception as e:
-            logger.error(f"Sleep tracking error: {e}")
+            logger.error(f"Health data retrieval error: {e}")
             return {
-                "sleep": {
-                    "hours_last_night": 0.0,
-                    "status": "unknown"
-                }
+                "hydration": {"percentage": 0, "water_intake_ml": 0, "status": "unknown"},
+                "exercise": {"steps_today": 0, "status": "unknown"},
+                "sleep": {"hours_last_night": 0, "status": "unknown"}
             }
 
     @staticmethod
@@ -159,3 +167,140 @@ class HealthTrackingTool:
         elif 0 < hours < 6:
             return "needs_improvement"
         return "unknown"
+
+
+class MedicalInfoTool:
+    """Medical information database for symptom research and remedies."""
+
+    @staticmethod
+    def get_medical_info(symptom: str = None, phase: str = None) -> Dict[str, Any]:
+        """
+        Get evidence-based medical information for symptoms.
+        Args:
+            symptom (str): The symptom to research
+            phase (str): The menstrual phase (optional)
+        Returns:
+            Dict[str, Any]: Medical information and remedies
+        """
+        # Medical database for common menstrual symptoms
+        medical_database = {
+            "cramps": {
+                "description": "Menstrual cramps (dysmenorrhea) are caused by uterine contractions.",
+                "evidence_level": "high",
+                "remedies": [
+                    "Heat therapy (heating pad, warm bath)",
+                    "Over-the-counter pain relievers (ibuprofen, naproxen)",
+                    "Gentle exercise and stretching",
+                    "Magnesium supplements",
+                    "Acupuncture or acupressure"
+                ],
+                "when_to_see_doctor": "Severe pain, pain that doesn't improve with treatment, or pain that interferes with daily activities"
+            },
+            "fatigue": {
+                "description": "Fatigue during menstruation is common due to hormonal changes and blood loss.",
+                "evidence_level": "high",
+                "remedies": [
+                    "Prioritize sleep and rest",
+                    "Stay hydrated",
+                    "Eat iron-rich foods",
+                    "Gentle exercise",
+                    "Avoid caffeine and alcohol"
+                ],
+                "when_to_see_doctor": "Extreme fatigue, fatigue that doesn't improve, or fatigue with other concerning symptoms"
+            },
+            "mood_changes": {
+                "description": "Hormonal fluctuations can cause mood swings, irritability, and emotional sensitivity.",
+                "evidence_level": "high",
+                "remedies": [
+                    "Practice stress management techniques",
+                    "Regular exercise",
+                    "Adequate sleep",
+                    "Mindfulness and meditation",
+                    "Talk to a trusted friend or therapist"
+                ],
+                "when_to_see_doctor": "Severe mood changes, thoughts of self-harm, or mood changes that significantly impact daily life"
+            },
+            "bloating": {
+                "description": "Water retention and hormonal changes can cause bloating during the menstrual cycle.",
+                "evidence_level": "moderate",
+                "remedies": [
+                    "Reduce salt intake",
+                    "Stay hydrated",
+                    "Gentle exercise",
+                    "Avoid carbonated beverages",
+                    "Eat smaller, more frequent meals"
+                ],
+                "when_to_see_doctor": "Severe bloating, bloating with other concerning symptoms, or bloating that doesn't improve"
+            },
+            "headaches": {
+                "description": "Hormonal changes can trigger headaches, especially during the luteal phase.",
+                "evidence_level": "high",
+                "remedies": [
+                    "Stay hydrated",
+                    "Get adequate sleep",
+                    "Manage stress",
+                    "Over-the-counter pain relievers",
+                    "Avoid trigger foods (chocolate, caffeine, alcohol)"
+                ],
+                "when_to_see_doctor": "Severe headaches, headaches with visual changes, or headaches that don't respond to treatment"
+            }
+        }
+
+        if symptom and symptom.lower() in medical_database:
+            return medical_database[symptom.lower()]
+        elif symptom:
+            # Return general information for unknown symptoms
+            return {
+                "description": f"Information about {symptom} during menstruation",
+                "evidence_level": "low",
+                "remedies": [
+                    "Consult with a healthcare provider",
+                    "Track symptoms in a journal",
+                    "Practice general self-care"
+                ],
+                "when_to_see_doctor": "If symptoms are severe, persistent, or concerning"
+            }
+        else:
+            # Return general menstrual health information
+            return {
+                "description": "General menstrual health information and self-care tips",
+                "evidence_level": "high",
+                "remedies": [
+                    "Maintain a healthy diet",
+                    "Exercise regularly",
+                    "Get adequate sleep",
+                    "Manage stress",
+                    "Track your cycle"
+                ],
+                "when_to_see_doctor": "For irregular cycles, severe symptoms, or any concerning changes"
+            }
+
+
+class WeatherTool:
+    """Weather API integration for symptom correlation."""
+
+    @staticmethod
+    def get_weather_data() -> Dict[str, Any]:
+        """
+        Get current weather data for symptom correlation.
+        Returns:
+            Dict[str, Any]: Weather information and potential impact on symptoms
+        """
+        try:
+            # Mock implementation - in production, this would use a weather API
+            return {
+                "temperature": 72,
+                "description": "Partly cloudy",
+                "humidity": 65,
+                "pressure": 1013,
+                "impact_on_symptoms": "Moderate humidity may affect bloating and discomfort. Consider staying hydrated and avoiding salty foods."
+            }
+        except Exception as e:
+            logger.error(f"Weather data retrieval error: {e}")
+            return {
+                "temperature": 70,
+                "description": "Unknown",
+                "humidity": 50,
+                "pressure": 1013,
+                "impact_on_symptoms": "Weather data unavailable. Focus on general self-care practices."
+            }

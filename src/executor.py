@@ -42,26 +42,39 @@ def call_gemini(prompt: str) -> str:
     """
     logger.info(f"Sending prompt to Gemini: {prompt}")
     try:
-        model = genai.GenerativeModel("gemini-pro")
-        response: Any = model.generate_content(prompt)
-        logger.info(f"Raw Gemini response: {response}")
+        # Try different model names
+        model_names = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"]
+        
+        for model_name in model_names:
+            try:
+                logger.info(f"Trying model: {model_name}")
+                model = genai.GenerativeModel(model_name)
+                response: Any = model.generate_content(prompt)
+                logger.info(f"Raw Gemini response: {response}")
 
-        # Check for response text
-        if hasattr(response, "text") and response.text:
-            logger.info(f"Gemini response text: {response.text}")
-            return response.text
+                # Check for response text
+                if hasattr(response, "text") and response.text:
+                    logger.info(f"Gemini response text: {response.text}")
+                    return response.text
 
-        # Fallback: check for candidates
-        if isinstance(response, dict) and "candidates" in response:
-            candidates = response["candidates"]
-            if candidates and "content" in candidates[0] and "parts" in candidates[0]["content"]:
-                parts = candidates[0]["content"]["parts"]
-                if parts and isinstance(parts[0], str):
-                    logger.info(f"Gemini response (candidates): {parts[0]}")
-                    return parts[0]
+                # Fallback: check for candidates
+                if isinstance(response, dict) and "candidates" in response:
+                    candidates = response["candidates"]
+                    if candidates and "content" in candidates[0] and "parts" in candidates[0]["content"]:
+                        parts = candidates[0]["content"]["parts"]
+                        if parts and isinstance(parts[0], str):
+                            logger.info(f"Gemini response (candidates): {parts[0]}")
+                            return parts[0]
 
-        logger.warning("Unexpected Gemini response format; returning stringified version.")
-        return str(response)
+                logger.warning("Unexpected Gemini response format; returning stringified version.")
+                return str(response)
+                
+            except Exception as model_error:
+                logger.warning(f"Model {model_name} failed: {model_error}")
+                continue
+        
+        # If all models fail, raise an error
+        raise RuntimeError("All Gemini models failed")
 
     except Exception as e:
         logger.error(f"Error communicating with Gemini API: {e}")

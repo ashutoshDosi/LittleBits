@@ -1,12 +1,5 @@
-import Tips from "../components/Tips";
+import HealthTracker from "../components/HealthTracker";
 
-const Home = () => {
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Partner Tips</h1>
-      <Tips />
-    </div>
-  );
+export default function HealthPage() {
+  return <HealthTracker />;
 }
-
-export default Home;
