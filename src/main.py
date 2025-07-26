@@ -110,8 +110,9 @@ Provide a comprehensive, helpful response that addresses the user's needs.
         logger.error(f"Error in chat endpoint: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/demo/chat", response_model=ChatResponse)
-def demo_chat_endpoint(request: ChatRequest):
+@app.post("/api/chat", response_model=ChatResponse)
+@app.post("/api/chat", response_model=ChatResponse)  # Add /api prefix
+def chat_endpoint(request: ChatRequest, current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
     """
     Demo chat endpoint for unauthenticated testing.
     """

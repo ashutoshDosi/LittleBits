@@ -12,6 +12,8 @@ export default function GeminiChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -22,9 +24,53 @@ export default function GeminiChat() {
     scrollToBottom();
   }, [messages]);
 
+  // Authentication check on component mount
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      setAuthToken(token);
+      setIsAuthenticated(true);
+    } else {
+      // Use demo authentication for testing
+      handleDemoAuth();
+    }
+  }, []);
+
+  // Demo authentication function
+  const handleDemoAuth = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/demo/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      if (data.access_token) {
+        setAuthToken(data.access_token);
+        setIsAuthenticated(true);
+        localStorage.setItem('authToken', data.access_token);
+      }
+    } catch (error) {
+      console.error('Demo auth failed:', error);
+      // Continue without auth - will use demo endpoint
+    }
+  };
+
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
+
+    // Determine endpoint and headers based on authentication
+    const endpoint = isAuthenticated ? '/chat' : '/demo/chat';
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (isAuthenticated && authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
 
     const userMessage: Message = {
       role: 'user',
@@ -37,17 +83,17 @@ export default function GeminiChat() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/chat', {
+      const response = await fetch(`http://localhost:8000${endpoint}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message: input }),
+        headers,
+        body: JSON.stringify({ 
+          message: input,
+        }),
       });
 
       const data = await response.json();
 
-      if (data.status === 'success') {
+      if (response.ok) {
         const assistantMessage: Message = {
           role: 'assistant',
           content: data.response,
@@ -55,10 +101,19 @@ export default function GeminiChat() {
         };
         setMessages(prev => [...prev, assistantMessage]);
       } else {
-        throw new Error(data.error || 'Failed to get response');
+        // Handle different error formats from your API
+        const errorMessage = data.detail || data.error || 'Failed to get response';
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('Error:', error);
+      
+      // Handle authentication errors specifically
+      if (error instanceof Error && error.message.includes('401')) {
+        // Try to re-authenticate
+        await handleDemoAuth();
+      }
+      
       const errorMessage: Message = {
         role: 'assistant',
         content: 'Sorry, I encountered an error. Please try again.',
@@ -81,12 +136,23 @@ export default function GeminiChat() {
     <div className="flex flex-col h-screen max-w-4xl mx-auto bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
       <div className="bg-white shadow-sm border-b px-6 py-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-            <Bot className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+              <Bot className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold text-gray-800">CycleWise Chat</h1>
+              <p className="text-sm text-gray-500">Powered by Google Gemini</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-gray-500">Powered by Google Gemini</p>
+          
+          {/* Authentication Status */}
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${isAuthenticated ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+            <span className="text-xs text-gray-500">
+              {isAuthenticated ? 'Authenticated' : 'Demo Mode'}
+            </span>
           </div>
         </div>
       </div>
@@ -98,10 +164,15 @@ export default function GeminiChat() {
             <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-4">
               <Bot className="w-8 h-8 text-white" />
             </div>
-            <h3 className="text-xl font-medium text-gray-700 mb-2">Welcome to Gemini Chat!</h3>
+            <h3 className="text-xl font-medium text-gray-700 mb-2">Welcome to CycleWise!</h3>
             <p className="text-gray-500 max-w-md">
-              I'm your AI assistant powered by Google Gemini. Ask me anything and I'll do my best to help you.
+              I'm your AI health assistant powered by Google Gemini. I can help you with cycle tracking, health insights, and personalized recommendations.
             </p>
+            {!isAuthenticated && (
+              <p className="text-yellow-600 text-sm mt-2">
+                Running in demo mode - some features may be limited.
+              </p>
+            )}
           </div>
         ) : (
           <>
@@ -176,7 +247,7 @@ export default function GeminiChat() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your message here..."
+              placeholder="Ask me about your health, cycle tracking, or wellness tips..."
               disabled={loading}
               className="w-full px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed pr-12"
             />
