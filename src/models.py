@@ -12,8 +12,8 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    
     interactions = relationship("Interaction", back_populates="user")
     cycles = relationship("Cycle", back_populates="user")
     reminders = relationship("Reminder", back_populates="user")
@@ -27,6 +27,7 @@ class Interaction(Base):
     message = Column(Text)
     response = Column(Text)
     timestamp = Column(DateTime, default=datetime.utcnow)
+    
     user = relationship("User", back_populates="interactions")
 
 class Cycle(Base):
@@ -36,6 +37,7 @@ class Cycle(Base):
     start_date = Column(DateTime, nullable=False)
     symptoms = Column(Text)
     moods = Column(Text)
+    
     user = relationship("User", back_populates="cycles")
 
 class Reminder(Base):
@@ -44,8 +46,9 @@ class Reminder(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     type = Column(String)
     time = Column(String)
-    method = Column(String)  # email, sms, etc.
+    method = Column(String)  # e.g., 'email', 'sms', etc.
     active = Column(Boolean, default=True)
+    
     user = relationship("User", back_populates="reminders")
 
 class Partner(Base):
@@ -54,6 +57,7 @@ class Partner(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     partner_user_id = Column(Integer, ForeignKey("users.id"))
     consent_type = Column(String)  # e.g., 'cycle', 'advice', etc.
-    status = Column(String, default="pending")  # pending, accepted, revoked
+    status = Column(String, default="pending")  # 'pending', 'accepted', 'revoked'
+
     user = relationship("User", back_populates="partners", foreign_keys=[user_id])
-    partner = relationship("User", back_populates="partner_of", foreign_keys=[partner_user_id]) 
+    partner = relationship("User", back_populates="partner_of", foreign_keys=[partner_user_id])

@@ -13,6 +13,7 @@ from datetime import datetime
 
 router = APIRouter()
 
+# --- Auth & User ---
 @router.post("/register", response_model=schemas.UserOut)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = auth.get_user_by_email(db, user.email)
@@ -35,7 +36,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 @router.get("/me", response_model=schemas.UserOut)
 def get_me(current_user: models.User = Depends(auth.get_current_user)):
-    return current_user 
+    return current_user
 
 # --- Personalized Memory (Interactions) ---
 @router.post("/interactions", response_model=schemas.InteractionOut)
@@ -92,12 +93,10 @@ def get_current_phase(
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
-    # Simple phase calculation based on last cycle start date
     last_cycle = db.query(models.Cycle).filter(models.Cycle.user_id == current_user.id).order_by(models.Cycle.start_date.desc()).first()
     if not last_cycle:
         return {"phase": None, "message": "No cycle data found."}
     days_since = (datetime.utcnow() - last_cycle.start_date).days
-    # Example: Menstrual (0-4), Follicular (5-13), Ovulatory (14-16), Luteal (17-28)
     if days_since <= 4:
         phase = "menstrual"
     elif days_since <= 13:
@@ -110,7 +109,7 @@ def get_current_phase(
         phase = "unknown"
     return {"phase": phase, "days_since": days_since}
 
-# --- Reminders (Stub) ---
+# --- Reminders ---
 @router.post("/reminders", response_model=schemas.ReminderOut)
 def create_reminder(
     reminder: schemas.ReminderCreate,
@@ -162,7 +161,6 @@ def get_partners(
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
-    # Show partners where user is the owner
     return db.query(models.Partner).filter(models.Partner.user_id == current_user.id).all()
 
 @router.post("/partners/{partner_id}/consent")
@@ -184,13 +182,21 @@ def get_shared_info(
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
-    # Show info shared with the current user as a partner
     partner_links = db.query(models.Partner).filter(models.Partner.partner_user_id == current_user.id, models.Partner.status == "accepted").all()
     shared = []
     for link in partner_links:
         owner = db.query(models.User).filter(models.User.id == link.user_id).first()
         if link.consent_type == "cycle":
             cycles = db.query(models.Cycle).filter(models.Cycle.user_id == owner.id).all()
-            shared.append({"owner": owner.email, "cycles": [c.start_date.isoformat() for c in cycles]})
-        # Add more types as needed
-    return shared 
+            shared.append({
+                "owner": owner.email,
+                "cycles": [
+                    {
+                        "start_date": c.start_date.isoformat(),
+                        "symptoms": c.symptoms,
+                        "moods": c.moods
+                    } for c in cycles
+                ]
+            })
+        # Add other consent types here if needed
+    return shared

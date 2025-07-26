@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Load environment variables from .env file
 load_dotenv()
 
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY not found in .env file.")
@@ -42,25 +42,27 @@ def call_gemini(prompt: str) -> str:
     """
     logger.info(f"Sending prompt to Gemini: {prompt}")
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel("gemini-pro")
         response: Any = model.generate_content(prompt)
-        # Log the raw response object
         logger.info(f"Raw Gemini response: {response}")
-        # Try to extract the text from the response
-        if hasattr(response, 'text') and response.text:
+
+        # Check for response text
+        if hasattr(response, "text") and response.text:
             logger.info(f"Gemini response text: {response.text}")
             return response.text
-        # Fallback: check for 'candidates' key (dict response)
-        if isinstance(response, dict) and 'candidates' in response:
-            candidates = response['candidates']
-            if candidates and 'content' in candidates[0] and 'parts' in candidates[0]['content']:
-                parts = candidates[0]['content']['parts']
+
+        # Fallback: check for candidates
+        if isinstance(response, dict) and "candidates" in response:
+            candidates = response["candidates"]
+            if candidates and "content" in candidates[0] and "parts" in candidates[0]["content"]:
+                parts = candidates[0]["content"]["parts"]
                 if parts and isinstance(parts[0], str):
                     logger.info(f"Gemini response (candidates): {parts[0]}")
                     return parts[0]
-        # Fallback: try str(response)
-        logger.warning("Gemini response format unexpected, using str(response)")
+
+        logger.warning("Unexpected Gemini response format; returning stringified version.")
         return str(response)
+
     except Exception as e:
         logger.error(f"Error communicating with Gemini API: {e}")
-        raise RuntimeError(f"Gemini API call failed: {e}") 
+        raise RuntimeError(f"Gemini API call failed: {e}")
