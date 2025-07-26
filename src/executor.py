@@ -42,7 +42,7 @@ def call_gemini(prompt: str) -> str:
     """
     logger.info(f"Sending prompt to Gemini: {prompt}")
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-pro')
         response: Any = model.generate_content(prompt)
         # Log the raw response object
         logger.info(f"Raw Gemini response: {response}")
