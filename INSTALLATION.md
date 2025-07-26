@@ -36,7 +36,12 @@ GOOGLE_CLIENT_ID=your_google_client_id_here
 python3 -m src.init_db
 ```
 
-### 6. Run the Application
+### 6. Run Database Migration (if updating existing database)
+```bash
+python3 src/migrate_db.py
+```
+
+### 7. Run the Application
 ```bash
 uvicorn src.main:app --reload
 ```

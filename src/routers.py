@@ -59,6 +59,27 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 def get_me(current_user: models.User = Depends(auth.get_current_user)):
     return current_user
 
+@router.put("/me", response_model=schemas.UserOut)
+def update_me(
+    user_update: schemas.UserUpdate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update current user's profile information.
+    """
+    # Update only provided fields
+    if user_update.age is not None:
+        current_user.age = user_update.age
+    if user_update.cycle_start_date is not None:
+        current_user.cycle_start_date = user_update.cycle_start_date
+    if user_update.period_duration is not None:
+        current_user.period_duration = user_update.period_duration
+    
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
 # --- Personalized Memory (Interactions) ---
 @router.post("/interactions", response_model=schemas.InteractionOut)
 def log_interaction(

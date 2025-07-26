@@ -12,6 +12,9 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
+    age = Column(Integer)  # User's age
+    cycle_start_date = Column(DateTime)  # When they started tracking cycles
+    period_duration = Column(Integer)  # Average period duration in days
     created_at = Column(DateTime, default=datetime.utcnow)
     
     interactions = relationship("Interaction", back_populates="user")

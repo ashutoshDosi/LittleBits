@@ -9,7 +9,10 @@
 ```json
 {
   "email": "user@example.com",
-  "name": "John Doe"  // optional
+  "name": "John Doe",  // optional
+  "age": 25,           // optional
+  "cycle_start_date": "2024-01-01T00:00:00",  // optional
+  "period_duration": 5  // optional, in days
 }
 ```
 
@@ -18,11 +21,64 @@
 {
   "id": 1,
   "email": "user@example.com",
+  "age": 25,
+  "cycle_start_date": "2024-01-01T00:00:00",
+  "period_duration": 5,
   "created_at": "2024-01-01T00:00:00"
 }
 ```
 
-### 2. Google OAuth Login
+### 2. Get Current User Profile
+**Endpoint:** `GET /api/me`
+
+**Headers:**
+```
+Authorization: Bearer your_jwt_token
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "email": "user@example.com",
+  "age": 25,
+  "cycle_start_date": "2024-01-01T00:00:00",
+  "period_duration": 5,
+  "created_at": "2024-01-01T00:00:00"
+}
+```
+
+### 3. Update User Profile
+**Endpoint:** `PUT /api/me`
+
+**Headers:**
+```
+Authorization: Bearer your_jwt_token
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "age": 26,                                    // optional
+  "cycle_start_date": "2024-01-15T00:00:00",   // optional
+  "period_duration": 6                          // optional
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "email": "user@example.com",
+  "age": 26,
+  "cycle_start_date": "2024-01-15T00:00:00",
+  "period_duration": 6,
+  "created_at": "2024-01-01T00:00:00"
+}
+```
+
+### 4. Google OAuth Login
 **Endpoint:** `POST /api/auth/google`
 
 **Request Body:**
@@ -42,7 +98,7 @@
 
 ## Chat API
 
-### 3. Authenticated Chat
+### 5. Authenticated Chat
 **Endpoint:** `POST /chat`
 
 **Headers:**
@@ -65,7 +121,7 @@ Content-Type: application/json
 }
 ```
 
-### 4. Demo Chat (No Auth Required)
+### 6. Demo Chat (No Auth Required)
 **Endpoint:** `POST /demo/chat`
 
 **Request Body:**
@@ -84,7 +140,7 @@ Content-Type: application/json
 
 ## Cycle Tracking
 
-### 5. Log Cycle
+### 7. Log Cycle
 **Endpoint:** `POST /api/cycles`
 
 **Headers:**
@@ -102,7 +158,7 @@ Content-Type: application/json
 }
 ```
 
-### 6. Get Cycles
+### 8. Get Cycles
 **Endpoint:** `GET /api/cycles`
 
 **Headers:**
@@ -112,7 +168,7 @@ Authorization: Bearer your_jwt_token
 
 ## Reminders
 
-### 7. Create Reminder
+### 9. Create Reminder
 **Endpoint:** `POST /api/reminders`
 
 **Request Body:**
@@ -124,12 +180,12 @@ Authorization: Bearer your_jwt_token
 }
 ```
 
-### 8. Get Reminders
+### 10. Get Reminders
 **Endpoint:** `GET /api/reminders`
 
 ## Partner Features
 
-### 9. Invite Partner
+### 11. Invite Partner
 **Endpoint:** `POST /api/invite-partner`
 
 **Request Body:**
@@ -140,7 +196,7 @@ Authorization: Bearer your_jwt_token
 }
 ```
 
-### 10. Get Shared Info
+### 12. Get Shared Info
 **Endpoint:** `GET /api/shared-info`
 
 ## Usage Examples
@@ -160,7 +216,25 @@ fetch('/api/users', {
   headers: {'Content-Type': 'application/json'},
   body: JSON.stringify({
     email: 'user@example.com',
-    name: 'User Name'
+    name: 'User Name',
+    age: 25,
+    cycle_start_date: '2024-01-01T00:00:00',
+    period_duration: 5
+  })
+})
+```
+
+### Updating User Profile:
+```javascript
+fetch('/api/me', {
+  method: 'PUT',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + jwt_token
+  },
+  body: JSON.stringify({
+    age: 26,
+    period_duration: 6
   })
 })
 ```

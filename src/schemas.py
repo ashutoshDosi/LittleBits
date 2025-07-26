@@ -15,14 +15,25 @@ class UserCreate(BaseModel):
 class UserCreateGoogle(BaseModel):
     email: EmailStr
     name: Optional[str] = None
+    age: Optional[int] = None
+    cycle_start_date: Optional[datetime] = None
+    period_duration: Optional[int] = None
 
 class UserOut(BaseModel):
     id: int
     email: EmailStr
+    age: Optional[int] = None
+    cycle_start_date: Optional[datetime] = None
+    period_duration: Optional[int] = None
     created_at: datetime
 
     class Config:
         orm_mode = True
+
+class UserUpdate(BaseModel):
+    age: Optional[int] = None
+    cycle_start_date: Optional[datetime] = None
+    period_duration: Optional[int] = None
 
 # --- Token Authentication ---
 class Token(BaseModel):
