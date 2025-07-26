@@ -12,6 +12,10 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
 
+class UserCreateGoogle(BaseModel):
+    email: EmailStr
+    name: Optional[str] = None
+
 class UserOut(BaseModel):
     id: int
     email: EmailStr

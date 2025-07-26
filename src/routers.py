@@ -14,6 +14,27 @@ from datetime import datetime
 router = APIRouter()
 
 # --- Auth & User ---
+@router.post("/users", response_model=schemas.UserOut)
+def create_user(user_data: schemas.UserCreateGoogle, db: Session = Depends(get_db)):
+    """
+    Create a new user from Google OAuth data.
+    This endpoint is for frontend to create users after Google authentication.
+    """
+    # Check if user already exists
+    db_user = auth.get_user_by_email(db, user_data.email)
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create new user (no password needed for Google OAuth)
+    new_user = models.User(
+        email=user_data.email,
+        hashed_password=""  # Empty for Google OAuth users
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
 @router.post("/register", response_model=schemas.UserOut)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = auth.get_user_by_email(db, user.email)
