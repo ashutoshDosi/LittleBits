@@ -10,13 +10,8 @@ from .executor import call_gemini
 from .memory import log_interaction
 from fastapi.middleware.cors import CORSMiddleware
 from .routers import router as api_router
-from .database import get_db
-from . import models
-from . import auth
-from sqlalchemy.orm import Session
-import logging
+import os
 
-logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -84,3 +79,8 @@ How to run:
 3. Start the server:
    uvicorn src.main:app --reload
 """
+
+from dotenv import load_dotenv
+load_dotenv()
+
+SECRET_KEY = os.environ["SECRET_KEY"]
