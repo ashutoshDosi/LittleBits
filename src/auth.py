@@ -19,8 +19,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
 
-# Google OAuth Client ID - replace with your actual client ID from Google Cloud Console
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "your-google-client-id-here")
+# Google OAuth Client ID
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "492608371113-bp2opfm3v0bjbp307cbuon8ha9j1rsbu.apps.googleusercontent.com)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
